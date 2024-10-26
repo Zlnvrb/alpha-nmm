@@ -8,6 +8,7 @@ class Game():
 
     See othello/OthelloGame.py for an example implementation.
     """
+
     def __init__(self):
         pass
 
@@ -110,4 +111,8 @@ class Game():
             boardString: a quick conversion of board to a string format.
                          Required by MCTS for hashing.
         """
+        pass
+
+
+    def getValidMovesAsTuple(self, board, player):
         pass

@@ -27,6 +27,13 @@ class Arena():
         self.game = game
         self.display = display
 
+    def symbolic(self, value):
+        if value == 1:
+            return 'Player 1 wins!'
+        if value == -1:
+            return 'Player 1 wins!'
+        return 'Draw!'
+
     def playGame(self, verbose=False):
         """
         Executes one episode of a game.
@@ -40,26 +47,38 @@ class Arena():
         players = [self.player2, None, self.player1]
         curPlayer = 1
         board = self.game.getInitBoard()
+        # iteration (moves)
         it = 0
         while self.game.getGameEnded(board, curPlayer) == 0:
             it += 1
             if verbose:
                 assert self.display
+                # TODO change -1 to show player 2
                 print("Turn ", str(it), "Player ", str(curPlayer))
                 self.display(board)
+            # TODO understand how action is taken. Action is a number.
+
             action = players[curPlayer + 1](self.game.getCanonicalForm(board, curPlayer))
 
+            # Valids is a vector of 1 and 0 with length of all possible moves, with 1 to mark valid move in this
+            # position.
             valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer), 1)
 
-            if valids[action] == 0:
+            while valids[action] == 0:
                 log.error(f'Action {action} is not valid!')
-                log.debug(f'valids = {valids}')
-                assert valids[action] > 0
+                log.info(f'valids = {[i for i, value in enumerate(valids) if value == 1]}')
+                action = players[curPlayer + 1](self.game.getCanonicalForm(board, curPlayer))
+
+                # Valids is a vector of 1 and 0 with length of all possible moves, with 1 to mark valid move in this
+                # position.
+                valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer), 1)
+
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
         if verbose:
             assert self.display
-            print("Game over: Turn ", str(it), "Result ", str(self.game.getGameEnded(board, 1)))
+            print("Game over: Moves made ", str(it), "Result ", str(self.symbolic(self.game.getGameEnded(board, 1))))
             self.display(board)
+            print('----------------------------------------------------------------------------------')
         return curPlayer * self.game.getGameEnded(board, curPlayer)
 
     def playGames(self, num, verbose=False):
