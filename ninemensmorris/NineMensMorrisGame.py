@@ -172,7 +172,6 @@ class NineMensMorrisGame(Game):
         return rotation_90
 
     """
-    based on Othellogame.py
     Gets the initial form of the board in game phase zero
     """
 
@@ -198,7 +197,6 @@ class NineMensMorrisGame(Game):
         return (6, 6)
 
     """
-    based on Othellogame.py
     Gets the number of all possible actions
     """
 
@@ -210,7 +208,6 @@ class NineMensMorrisGame(Game):
         return len(self.all_moves)
 
     """
-    based on Othellogame.py
     Returns the next state to given a board, player and move
     """
 
@@ -232,7 +229,6 @@ class NineMensMorrisGame(Game):
         return (b.pieces, -player)
 
     """
-    based on Othellogame.py
     Gets a vector of size == ActionSize that marks legal moves for the current
     board and player with 1
     """
@@ -318,6 +314,11 @@ class NineMensMorrisGame(Game):
         b[4][0] = count_placements
         b[4][1] = current_moves
         return b
+
+    def getScore(self, board, player):
+        b = Board()
+        b.pieces = np.copy(board)
+        return b.countDiff(player)
 
     """
     Gets some Symmetries by rotating the board three times, each time also

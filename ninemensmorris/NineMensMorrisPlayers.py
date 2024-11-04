@@ -32,6 +32,23 @@ class RandomPlayer():
         return a
 
 
+class GreedyNineMensMorrisPlayer():
+    def __init__(self, game):
+        self.game = game
+
+    def play(self, board):
+        valid_moves_vector = self.game.getValidMoves(board, 1)
+        candidates = []
+        for a in range(self.game.getActionSize()):
+            if valid_moves_vector[a] == 0:
+                continue
+            next_board, _ = self.game.getNextState(board, 1, a)
+            score = self.game.getScore(next_board, 1)
+            candidates += [(-score, a)]
+        candidates.sort()
+        return candidates[0][1]
+
+
 class HumanNineMensMorrisPlayer():
     def __init__(self, game, show_valid_moves):
         self.game = game

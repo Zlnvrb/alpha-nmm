@@ -31,7 +31,7 @@ class Arena():
         if value == 1:
             return 'Player 1 wins!'
         if value == -1:
-            return 'Player 1 wins!'
+            return 'Player -1 wins!'
         return 'Draw!'
 
     def playGame(self, verbose=False):
@@ -54,8 +54,8 @@ class Arena():
             if verbose:
                 assert self.display
                 # TODO change -1 to show player 2
-                print("Turn ", str(it), "Player ", str(curPlayer))
                 self.display(board)
+                print("Turn ", str(it), "Player ", str(curPlayer))
             # TODO understand how action is taken. Action is a number.
 
             action = players[curPlayer + 1](self.game.getCanonicalForm(board, curPlayer))
@@ -76,8 +76,8 @@ class Arena():
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
         if verbose:
             assert self.display
-            print("Game over: Moves made ", str(it), "Result ", str(self.symbolic(self.game.getGameEnded(board, 1))))
             self.display(board)
+            print("Game over: Moves made ", str(it), "Result ", str(self.symbolic(self.game.getGameEnded(board, 1))))
             print('----------------------------------------------------------------------------------')
         return curPlayer * self.game.getGameEnded(board, curPlayer)
 

@@ -7,10 +7,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-"""
-Copied from:
-https://github.com/suragnair/alpha-zero-general/blob/master/othello/pytorch/OthelloNNet.py
-"""
 class NineMensMorrisNNet(nn.Module):
     def __init__(self, game, args):
         # game params

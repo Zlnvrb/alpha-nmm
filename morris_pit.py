@@ -2,21 +2,26 @@
 use this script to play any two agents against each other, or play manually with
 any agent.
 """
+import sys
+
 import numpy as np
 
 from Arena import Arena
 from MCTS import MCTS
 from ninemensmorris.NineMensMorrisGame import NineMensMorrisGame
-from ninemensmorris.NineMensMorrisPlayers import RandomPlayer, HumanNineMensMorrisPlayer
+from ninemensmorris.NineMensMorrisPlayers import RandomPlayer, HumanNineMensMorrisPlayer, GreedyNineMensMorrisPlayer
 from ninemensmorris.pytorch.NNet import NNetWrapper
 from utils import dotdict
 
-human_vs_cpu = True
+human_vs_cpu = False
+random_play = False
+greedy_play = True
 
 g = NineMensMorrisGame()
 
 # all players
 rp = RandomPlayer(g).play
+gp = GreedyNineMensMorrisPlayer(g).play
 hp = HumanNineMensMorrisPlayer(g, True).play
 
 # nnet players
@@ -29,6 +34,13 @@ n1p = lambda x: np.argmax(mcts1.getActionProb(x, temp=0))
 
 if human_vs_cpu:
     player2 = hp
+    file_name = "outputHuman.txt"
+elif random_play:
+    player2 = rp
+    file_name = "outputRandom.txt"
+elif greedy_play:
+    player2 = gp
+    file_name = "outputGreedy.txt"
 else:
     n2 = NNetWrapper(g)
     n2.load_checkpoint('./pretrained_models/ninemensmorris/pytorch/',
@@ -38,7 +50,16 @@ else:
     n2p = lambda x: np.argmax(mcts2.getActionProb(x, temp=0))
 
     player2 = n2p
+    file_name = "outputModel.txt"
 
-arena = Arena(n1p, player2, g, display=NineMensMorrisGame.display)
+print("Arena play is starting.")
+with open(file_name, "w") as file:
+    # Redirect sys.stdout to the file
+    sys.stdout = file
 
-print(arena.playGames(2, verbose=True))
+    arena = Arena(n1p, player2, g, display=NineMensMorrisGame.display)
+
+    print(arena.playGames(4, verbose=True))
+
+    sys.stdout = sys.__stdout__
+print("Arena play is over.")

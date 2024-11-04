@@ -74,6 +74,18 @@ class Board():
             legal_move_vector[index] = 1
         return legal_move_vector
 
+    def countDiff(self, color):
+        """Counts the # pieces of the given color
+        (1 for white, -1 for black, 0 for empty spaces)"""
+        count = 0
+        for y in range(self.n):
+            for x in range(self.n):
+                if self[x][y]==color:
+                    count += 1
+                if self[x][y]==-color:
+                    count -= 1
+        return count
+
     """
     Transforms the array form of the NineMensMorris board into a Image, that
     can be used as Input for the Neural Network

@@ -23,11 +23,6 @@ args = dotdict({
      'num_channels': 512,
 })
 
-"""
-Copied from:
-https://github.com/suragnair/alpha-zero-general/blob/master/othello/pytorch/NNet.py
-Adapted the load and save methods to save and load in google drive from colab
-"""
 class NNetWrapper(NeuralNet):
     def __init__(self, game):
         self.nnet = NineMensMorrisNNet(game, args)
@@ -35,8 +30,7 @@ class NNetWrapper(NeuralNet):
         self.action_size = game.getActionSize()
 
         if args.cuda:
-            #self.nnet.cuda.set_device({"cuda:0"})
-            self.nnet.to("cuda:0")
+            self.nnet.cuda()
 
     def train(self, examples):
         """
