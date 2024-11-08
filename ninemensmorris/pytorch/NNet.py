@@ -15,7 +15,7 @@ import torch.optim as optim
 from .NineMensMorrisNNet import NineMensMorrisNNet
 
 args = dotdict({
-     'lr': 0.001,
+     'lr': 0.0005,
      'dropout': 0.3,
      'epochs': 10,
      'batch_size': 64,

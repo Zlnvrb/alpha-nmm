@@ -1,71 +1,148 @@
-
 import numpy as np
+
+coefficients_dict = {
+    0: (1, 2),
+    1: (-1, 1),
+    2: (-1, -2)
+}
+
+
+def get_zone(position):
+    return int(position / 8)
+
+
+def is_corner_move(move):
+    return move % 2 == 0
+
+
+def check_not_previously_occupied(original, new_1, new_2):
+    return original is None or (original != new_1 and original != new_2)
+
+
+def get_missing_for_mill_corner_horizontal(position, zone):
+    stone_for_mill_1 = (position + 1) % 8 + zone * 8
+    stone_for_mill_2 = (position + 2) % 8 + zone * 8
+    return stone_for_mill_1, stone_for_mill_2
+
+
+def get_missing_for_mill_corner_vertical(position, zone):
+    stone_for_mill_1 = (position - 1) % 8 + zone * 8
+    stone_for_mill_2 = (position - 2) % 8 + zone * 8
+    return stone_for_mill_1, stone_for_mill_2
+
+
+def get_missing_for_mill_middle_horizontal(position, zone):
+    stone_for_mill_1 = ((position - 1) % 8) + zone * 8
+    stone_for_mill_2 = ((position + 1) % 8) + zone * 8
+    return stone_for_mill_1, stone_for_mill_2
+
+
+def get_missing_for_mill_middle_vertical(position, zone):
+    coefficients = coefficients_dict[zone]
+    stone_for_mill_1 = position + coefficients[0] * 8
+    stone_for_mill_2 = position + coefficients[1] * 8
+    return stone_for_mill_1, stone_for_mill_2
+
+
+def get_adjacent(position):
+    """
+    Gets all adjacent positions for given position
+    :return: list of adjacent positions
+    """
+    if position is not None and 0 <= position <= 23:
+        zone = get_zone(position)
+        adjacent = [((position - 1) % 8) + zone * 8, ((position + 1) % 8) + zone * 8]
+
+        if not is_corner_move(position):
+            potentials = [position + 8, position - 8]
+            for potential in potentials:
+                if 0 <= potential <= 23:
+                    adjacent.append(potential)
+        return adjacent
+    return []
 
 
 class Board():
     """
-    The Board is represented as an array.
-    The item on board[24] represents the placing phase. "0" if
-    the phase is not over yet, "1" if it is.
+    A NineMensMorris Board is represented as an array of size 6 x 6
+    The element board[3][0] represents the number of stones placed
+    The element board[3][1] represents the number of moves made thus far without any mills being formed.
 
     Board logic:
-
     The pieces are represented as
-    1 for player one (black), - 1 for player 2 (white) and 0 if there is no
-    piece on the position (for the canonical Board the
-    current players pieces are always shown as 1 and the
-    opponents as -1). The initial board:
+    -1/X for player one (red), 1/O for player 2 (green) and 0/* if there is no piece on the position
 
-        board shape:
-        [0,0,0,0,0,0,0,0,    -> zone 0
-        0,0,0,0,0,0,0,0,     -> zone 1
-        0,0,0,0,0,0,0,0]     -> zone 2
+    The initial board:
+        [[0,0,0,0,0,0,0,0],    -> zone 0
+        [0,0,0,0,0,0,0,0],     -> zone 1
+        [0,0,0,0,0,0,0,0],     -> zone 2
+        [0,0,0,0,0,0,0,0]      -> misc
 
-
-
-    Locations:
-
-    Locations are given as the index in the board array.
+    Stone positions:
+    - as index in flattened board (0 - 23)
+    - as tuple (zone, index) ((0,0) - (2,7))
 
     Actions:
-
-    Actions are stored in a list of tuples of the form:
-        action = [piece_location, move_location, remove_piece]
+    Actions are stored in a list with elements of type:
+        action = ((zoneOrigin, indexOrigin), (zoneDestination, indexDestination), (zoneCapture, indexCapture))
     """
 
-    """
-    6x6 configuration
-    24 spots for pieces
-    1 spot to count the placed pieces
-    1 spot to count the current moves without mills
-    """
-
-    def __init__(self):
+    def __init__(self, pieces=None):
+        """Set up initial board configuration."""
         self.n = 6
-        self.pieces = np.zeros((6, 6), dtype=int)
-
-    """
-    currently not used
-    """
+        self.m = 6
+        self.pieces = np.array(pieces, dtype=int) if pieces is not None else np.zeros((self.n, self.m), dtype=int)
 
     def __getitem__(self, index):
         return self.pieces[index]
 
-    """
-    returns a vector of ones and zeros, marking all the legal moves for the
-    current board state
-    """
+    def is_position_unoccupied(self, position):
+        board = self.get_board_as_array()
+        return board[position] == 0
+
+    def get_board_as_array(self):
+        """
+        Retrieves only the stone positions as array of length 24
+        """
+        board_array = []
+        board_array.extend(self.pieces[0])
+        board_array.extend(self.pieces[1])
+        board_array.extend(self.pieces[2])
+        board_array.extend(self.pieces[3])
+
+        assert (len(board_array) == 24)
+
+        return board_array
+
+    def get_stones_placed(self):
+        """
+        :return: number of stones that have been placed on the board thus far.
+        """
+        assert (0 <= self.pieces[4][0] <= 18)
+        return self.pieces[4][0]
+
+    def get_moves_made_without_mill(self):
+        """
+        :return: number of moves made thus far without a mill being created.
+        """
+        return self.pieces[4][1]
+
+    def get_stones_and_misc(self):
+        """
+        Retrieves the separated stone positions as array of length 24 and misc info
+        """
+        board_array = self.get_board_as_array()
+
+        return board_array, self.get_stones_placed(), self.get_moves_made_without_mill()
 
     def get_legal_move_vector(self, player, all_moves):
         """
-        Input:
-            player: current player (1 or -1)
-            all_moves: list with all possible moves
-
-        Returns:
-            legal_move_vector: vector of length = all_moves with ones and zeros
-            one meaning move is valid, zero meaning move is invalid
+        Valid moves vector for current player in current board state
+        :param player: The current player
+        :param all_moves: All possible moves array
+        :return: 1/0 valid moves vector
         """
+
         legal_moves = self.get_legal_moves(player)
         legal_move_vector = [0] * len(all_moves)
 
@@ -74,105 +151,41 @@ class Board():
             legal_move_vector[index] = 1
         return legal_move_vector
 
-    def countDiff(self, color):
+    def count_diff(self, color):
         """Counts the # pieces of the given color
         (1 for white, -1 for black, 0 for empty spaces)"""
         count = 0
         for y in range(self.n):
             for x in range(self.n):
-                if self[x][y]==color:
+                if self[x][y] == color:
                     count += 1
-                if self[x][y]==-color:
+                if self[x][y] == -color:
                     count -= 1
         return count
 
-    """
-    Transforms the array form of the NineMensMorris board into a Image, that
-    can be used as Input for the Neural Network
-    """
-
-    def arrayToImage(self, array, placements_and_moves):
-        """
-        Input:
-            array: list with all 24 board positions
-            placements_and_moves: Tuple containing the placed pieces in phase
-            zero and the current number of moves without a mill
-
-        Returns:
-            legal_move_vector: vector of length = all_moves with ones and zeros
-        """
-        board_image = np.zeros((6, 6), dtype=int)
-        boardx = 0
-        boardy = 0
-        count_placements, current_moves = placements_and_moves
-        assert (len(array) == 24)
-        assert (0 <= count_placements <= 18)
-        index = 0
-        while index < 24:
-
-            board_image[boardx][boardy] = np.copy(array[index])
-            if boardy == 5:
-                boardx += 1
-                boardy = 0
-            else:
-                boardy += 1
-            index += 1
-
-        board_image[4][0] = count_placements
-        board_image[4][1] = current_moves
-        assert (0 <= board_image[4][0] <= 18)
-
-        return board_image
-
-    """
-    Transforms the Image form used in the training of the Neural Network into an
-    Array of the board and a Tuple containing the placed pieces in phase zero
-    and the current number of moves without a mill.
-    """
-
-    def piecesToArray(self):
-        """
-        Returns:
-            re_board: list with all 24 board positions
-            placements_and_moves: Tuple containing the placed pieces in phase
-            zero and the current number of moves without a mill
-        """
-        re_board = []
-        re_board.extend(self.pieces[0])
-        re_board.extend(self.pieces[1])
-        re_board.extend(self.pieces[2])
-        re_board.extend(self.pieces[3])
-
-        assert (0 <= self.pieces[4][0] <= 18)
-        assert (len(re_board) == 24)
-        placements_and_moves = (self.pieces[4][0], self.pieces[4][1])
-
-        return (re_board, placements_and_moves)
-
-    """
-    Gets the current game phase for the current player, then calls the
-    right method to retrieve the legal moves for the specific game phase, board
-    and player. Returns a list
-    """
-
     def get_legal_moves(self, player):
         """
-        Input:
-            player: current player (1 or -1)
-
-        Returns:
-            legal_move_vector: list with all the move Tuples that are legal for
-            the current board state
+        Finds which game phase player is in and retrieves the legal moves for this phase.
+        :param player: The current player
+        :return: Legal moves vector in current board state for current phase
         """
+
         game_phase = self.get_game_phase(player)
+        # print(f"Game phase is {game_phase}")
         assert 0 <= game_phase <= 2
 
         if game_phase == 0:
-            return list(self.get_legal_moves_0(player))
+            v = list(self.get_legal_moves_0(player))
+            # print(f"Game phase 0: {v}")
+            return v
         elif game_phase == 1:
-            return list(self.get_legal_moves_1(player))
+            v = list(self.get_legal_moves_1(player))
+            # print(f"Game phase 1: {v}")
+            return v
         elif game_phase == 2:
-            return list(self.get_legal_moves_2(player))
+            v = list(self.get_legal_moves_2(player))
+            # print(f"Game phase 2: {v}")
+            return v
 
     """
     Gets the current game phase for the current player and board
@@ -180,560 +193,320 @@ class Board():
 
     def get_game_phase(self, player):
         """
-        Input:
-            player: current player (1 or -1)
-
-        Returns:
-            number: number representing the game phase
+        Determines which game phase player is in based on the board.
+        :param player: The current player
+        :return: the game phase
         """
 
-        array, placements_and_moves = self.piecesToArray()
-        assert (0 <= placements_and_moves[0] <= 18)
+        stones = self.get_stones_placed()
+        assert (0 <= stones <= 18)
 
-        # Phase zero: Placement
-        if placements_and_moves[0] < 18:
+        if stones < 18:
             return 0
-        # Phase two: Flying
-        elif len(self.get_player_pieces(player)) <= 3:
+        elif len(self.get_player_stones(player)) <= 3:
             return 2
-        # Phase one: Moving
         else:
             return 1
 
-    """
-    Gets all positions for the given players pieces in the array form of
-    the board
-    """
-
-    def get_player_pieces(self, player):
+    def get_player_stones(self, player):
         """
-        Input:
-            player: current player (1 or -1)
-
-        Returns:
-            locations: list of the locations for all the pieces of the given player
+        Gets the positions of the player's stones
+        :param player: The current player
+        :return: list of stone positions
         """
-        board, placements = self.piecesToArray()
-        locations = []
 
+        board = self.get_board_as_array()
+        positions = []
         index = 0
         while index < len(board):
             if board[index] == player:
-                locations.append(index)
+                positions.append(index)
             index += 1
-        if locations == []:
-            return []
-        else:
-            return list(locations)
+        return list(positions)
 
-    """
-    Gets all the positions on the board that are empty
-    """
-
-    def get_empty_positions(self):
+    def get_empty_spaces(self):
         """
-        Returns:
-            locations: list of all empty positions
+        :return: List of all empty spaces on the board
         """
-        board, placements = self.piecesToArray()
-        assert (0 <= placements[0] <= 18)
-        assert (len(board) == 24)
 
-        locations = []
+        board = self.get_board_as_array()
 
-        index = 0
-        while index < len(board):
-            if board[index] == 0:
-                locations.append(index)
-            index += 1
+        spaces = [index for index, value in enumerate(board) if value == 0]
 
-        return list(locations)
+        return list(spaces)
 
-    """
-    Checks for each possible move, if a new mill is formed.
-    Each check makes sure, that the origin of the move, isnt one of the pieces in the
-    potentially new mill.
-    Returns a list of all move Tuples that form a new mill.
-    """
-
-    def get_possible_mills(self, move_locations, player):
+    def get_possible_mills(self, moves, player):
         """
-        Input:
-            move_locations: list of Tuples with (origin, destination)
-            player: current player (1 or -1)
-
-        Returns:
-            number: list of all moves that form a mill on the board
+        :param moves: The possible moves (origin, destination)
+        :param player: The current player
+        :return: List of all moves that will make a mill on the board for current player
         """
-        board, placements = self.piecesToArray()
-        assert (0 <= placements[0] <= 18)
-        assert (len(board) == 24)
         move_forms_mill = []
 
-        for move in move_locations:
-            # is move valid
-            if (move != None) and (move[1] < 24) and (move[1] >= 0):
-                stone_position_new = move[1]
+        for move in moves:
+            if (move is not None) and 0 <= move[1] < 24:
                 stone_position_orig = move[0]
-                if (stone_position_new % 2) == 0:  # move is in a corner
-                    # check if "previous" spaces are occupied by this player
-                    if stone_position_new < 8:
-                        stone_for_mill_1 = (stone_position_new - 1) % 8
-                        stone_for_mill_2 = (stone_position_new - 2) % 8
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and \
-                                board[stone_for_mill_1] == player and board[stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-                    if stone_position_new > 15:
-                        stone_for_mill_1 = ((stone_position_new - 1) % 8) + 16
-                        stone_for_mill_2 = ((stone_position_new - 2) % 8) + 16
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-                    else:
-                        stone_for_mill_1 = ((stone_position_new - 1) % 8) + 8
-                        stone_for_mill_2 = ((stone_position_new - 2) % 8) + 8
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
+                stone_position_new = move[1]
+                zone = get_zone(stone_position_new)
+                # Move to Corner
+                if is_corner_move(stone_position_new):
 
-                    # check if "next" spaces are occupied by this player
-                    if stone_position_new < 8:
-                        stone_for_mill_1 = (stone_position_new + 1) % 8
-                        stone_for_mill_2 = (stone_position_new + 2) % 8
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig, stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-                    if stone_position_new > 15:
-                        stone_for_mill_1 = ((stone_position_new + 1) % 8) + 16
-                        stone_for_mill_2 = ((stone_position_new + 2) % 8) + 16
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-                    else:
-                        stone_for_mill_1 = ((stone_position_new + 1) % 8) + 8
-                        stone_for_mill_2 = ((stone_position_new + 2) % 8) + 8
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-
-                else:  # move is in the middle of a row
-                    # check if "next" and "previous" spaces are occupied by this player
-                    if stone_position_new < 8:
-                        stone_for_mill_1 = ((stone_position_new - 1) % 8)
-                        stone_for_mill_2 = ((stone_position_new + 1) % 8)
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-                    if stone_position_new > 15:
-                        stone_for_mill_1 = ((stone_position_new - 1) % 8) + 16
-                        stone_for_mill_2 = ((stone_position_new + 1) % 8) + 16
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-                    else:
-                        stone_for_mill_1 = ((stone_position_new - 1) % 8) + 8
-                        stone_for_mill_2 = ((stone_position_new + 1) % 8) + 8
-
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
+                    # check horizontally
+                    stone_for_mill_1, stone_for_mill_2 = get_missing_for_mill_corner_horizontal(stone_position_new,
+                                                                                                zone)
+                    if check_not_previously_occupied(stone_position_orig, stone_for_mill_1, stone_for_mill_2) and \
+                            self.check_player_occupies_on_board(player, stone_for_mill_1, stone_for_mill_2):
+                        move_forms_mill.append(move)
 
                     # check vertically
-                    if stone_position_new < 8:
-                        stone_for_mill_1 = stone_position_new + 8
-                        stone_for_mill_2 = stone_for_mill_1 + 8
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-                    if stone_position_new > 15:
-                        stone_for_mill_1 = stone_position_new - 8
-                        stone_for_mill_2 = stone_for_mill_1 - 8
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
-                    else:
-                        stone_for_mill_1 = stone_position_new - 8
-                        stone_for_mill_2 = stone_position_new + 8
-                        if self.check_not_equal(stone_position_orig, stone_for_mill_1) and self.check_not_equal(
-                                stone_position_orig,
-                                stone_for_mill_2) and board[stone_for_mill_1] == player and board[
-                            stone_for_mill_2] == player:
-                            move_forms_mill.append(move)
+                    stone_for_mill_1, stone_for_mill_2 = get_missing_for_mill_corner_vertical(stone_position_new, zone)
+                    if check_not_previously_occupied(stone_position_orig, stone_for_mill_1, stone_for_mill_2) and \
+                            self.check_player_occupies_on_board(player, stone_for_mill_1, stone_for_mill_2):
+                        move_forms_mill.append(move)
+
+                # Move to Middle
+                else:
+
+                    # check horizontally
+                    stone_for_mill_1, stone_for_mill_2 = get_missing_for_mill_middle_horizontal(stone_position_new,
+                                                                                                zone)
+                    if check_not_previously_occupied(stone_position_orig, stone_for_mill_1, stone_for_mill_2) and \
+                            self.check_player_occupies_on_board(player, stone_for_mill_1, stone_for_mill_2):
+                        move_forms_mill.append(move)
+
+                    # check vertically
+                    stone_for_mill_1, stone_for_mill_2 = get_missing_for_mill_middle_vertical(stone_position_new, zone)
+                    if check_not_previously_occupied(stone_position_orig, stone_for_mill_1, stone_for_mill_2) and \
+                            self.check_player_occupies_on_board(player, stone_for_mill_1, stone_for_mill_2):
+                        move_forms_mill.append(move)
 
         return list(move_forms_mill)
 
-    """
-    Looks at the board and returns all current mills for a given player,
-    in tuples of their coordinates
-    """
-
-    def check_not_equal(self, sP, sO):
-        return sP != sO
+    def check_player_occupies_on_board(self, player, pos_1, pos_2):
+        """
+        Checks if player occupies the given positions on the board
+        """
+        board = self.get_board_as_array()
+        return board[pos_1] == player and board[pos_2] == player
 
     def check_for_mills(self, player):
         """
-        Input:
-            player: current player (1 or -1)
-
-        Returns:
-            current_mills: all mills for the current player
+        :param player: The current player
+        :return: List of all mills for current player
         """
+        # TODO: Check if I should remove duplicates mill 0-1-2 is same as 1-0-2, 0-2-1, 1-2-0, 2-1-0, 2-0-1
 
         current_mills = []
-        board, placements = self.piecesToArray()
-        assert (0 <= placements[0] <= 18)
-        assert (len(board) == 24)
+        stone_positions = self.get_player_stones(player)
 
-        index = 0
+        for position in stone_positions:
+            zone = get_zone(position)
+            if is_corner_move(position):
+                stone_for_mill_1, stone_for_mill_2 = get_missing_for_mill_corner_horizontal(position, zone)
+                if self.check_player_occupies_on_board(player, stone_for_mill_1, stone_for_mill_2):
+                    current_mills.append((position, stone_for_mill_1, stone_for_mill_2))
+                stone_for_mill_1, stone_for_mill_2 = get_missing_for_mill_corner_vertical(position, zone)
+                if self.check_player_occupies_on_board(player, stone_for_mill_1, stone_for_mill_2):
+                    current_mills.append((position, stone_for_mill_1, stone_for_mill_2))
 
-        while index < 23:  # check rings
-            if (index in [6, 14, 22]):
-                if (board[index] == board[index + 1] == board[index - 6] == player):
-                    current_mills.append((index, index + 1, index - 6))
-            elif (board[index] == board[index + 1] == board[index + 2] == player):
-                current_mills.append((index, index + 1, index + 2))
+            else:
+                stone_for_mill_1, stone_for_mill_2 = get_missing_for_mill_middle_horizontal(position, zone)
+                if self.check_player_occupies_on_board(player, stone_for_mill_1, stone_for_mill_2):
+                    current_mills.append((position, stone_for_mill_1, stone_for_mill_2))
 
-            index += 2
-
-        index = 1
-
-        while index < 8:  # check intersections
-            if (board[index] == board[index + 8] == board[index + 16] == player):
-                current_mills.append((index, index + 8, index + 16))
-
-            index += 2
+                stone_for_mill_1, stone_for_mill_2 = get_missing_for_mill_middle_vertical(position, zone)
+                if self.check_player_occupies_on_board(player, stone_for_mill_1, stone_for_mill_2):
+                    current_mills.append((position, stone_for_mill_1, stone_for_mill_2))
 
         return list(current_mills)
 
-    """
-    Gets all neighbour postions for a position on the board
-    """
-
-    def get_neighbours(self, position):
+    def get_stones_outside_mills(self, player):
         """
-        Input:
-            position: postion index on the board
-
-        Returns:
-            neighbours: Tuple of all neighbours
+        :param player: The current player
+        :return: list of player's stones that are not in any mill
         """
-        assert (0 <= position <= 23)
-        if position != None:
-            if (position % 2) == 0:  # position is in a corner
-
-                if (position % 8) == 0:  # position is in the top left corner of a ring
-                    return (position + 1, position + 7)
-
-                else:  # position is in top right, or bottom corners
-                    return (position - 1, position + 1)
-
-            else:  # position is in a intersection
-                if position in [1, 3, 5, 7]:  # outer ring
-                    if position == 7:
-                        return (0, 6, 15)
-                    else:
-                        return (position - 1, position + 1, position + 8)
-
-
-                elif position in [9, 11, 13, 15]:  # middle ring
-                    if position == 15:
-                        return (7, 8, 14, 23)
-                    else:
-                        return (position - 8, position - 1, position + 1, position + 8)
-
-                elif position in [17, 19, 21, 23]:  # outer ring
-                    if position == 23:
-                        return (15, 16, 22)
-                    else:
-                        return (position - 8, position - 1, position + 1)
-
-        return
-
-    """
-    Gets all pieces that are outside of mills for the given player and the
-    current board
-    """
-
-    def get_pieces_outside_mills(self, player):
-        """
-        Input:
-            player: current player (1 or -1)
-
-        Returns:
-            pieces: all pieces for the given player outside of mills
-        """
-        all_pieces = self.get_player_pieces(player)
+        all_player_stones = self.get_player_stones(player)
 
         mills = self.check_for_mills(player)
 
-        remaining_pieces = self.get_player_pieces(player)
+        remaining_pieces = self.get_player_stones(player)
 
-        for piece in all_pieces:
-            if len(mills) != 0:
-                for mill in mills:
-                    if piece in mill and piece in remaining_pieces:
-                        remaining_pieces.remove(piece)
+        for stone in all_player_stones:
+            for mill in mills:
+                if stone in mill and stone in remaining_pieces:
+                    remaining_pieces.remove(stone)
 
         return list(remaining_pieces)
 
-    """
-    Looks at the board, given the current player and identifies all
-    legal moves for the current gamestate, given that the player is
-    in Phase 0
-    """
-
     def get_legal_moves_0(self, player):
         """
-        Input:
-            player: current player (1 or -1)
-
-        Returns:
-            moves: list of move tuples that are legal for the given player,
-            the players game phase and the current board
+        Returns the valid moves vector for current player in current board state in phase 0
+        :param player: The current player
+        :return: Valid moves vector
         """
-        # get enemy pieces that can be taken if a mill is formed
-        enemies_outside_mills = self.get_pieces_outside_mills(-player)
-        if len(enemies_outside_mills) > 0:
-            enemies_to_take = enemies_outside_mills
-        else:
-            # if all enemy pieces are in mills, we can take any one.
-            enemies_to_take = self.get_player_pieces(-player)
 
-        # get empty positions, they represent all possible move locations for phase zero
-        empty_locations = []
-        for position in self.get_empty_positions():
-            empty_locations.append(('none', position))
+        possibilities_for_capture = self.get_stones_outside_mills(-player)
 
-        # get moves -> for each move_location, check if a mill is formed (check row(s))
-        mill_moves = self.get_possible_mills(empty_locations, player)
-        # generate action tuples
+        empty_spaces = []
+        for space in self.get_empty_spaces():
+            empty_spaces.append((None, space))
+
+        mill_moves = self.get_possible_mills(empty_spaces, player)
+
         moves = []
 
-        for move in empty_locations:
+        for move in empty_spaces:
             if move in mill_moves:
-                for enemy in enemies_to_take:
-                    moves.append(('none', move[1], enemy))
+                for opponent_stone in possibilities_for_capture:
+                    moves.append((None, move[1], opponent_stone))
             else:
-                moves.append(('none', move[1], 'none'))
+                moves.append((None, move[1], None))
 
         return list(moves)
-
-    """
-    Looks at the board, given the current player and identifies all
-    legal moves for the current gamestate, given that the player is
-    in Phase 1
-    """
 
     def get_legal_moves_1(self, player):
         """
-        Input:
-            player: current player (1 or -1)
-
-        Returns:
-            moves: list of move tuples that are legal for the given player,
-            the players game phase and the current board
+        Returns the valid moves vector for current player in current board state in phase 1
+        :param player: The current player
+        :return: Valid moves vector
         """
+
         moves = []
-        board, placements = self.piecesToArray()
-        assert (placements[0] == 18)
-        assert (len(board) == 24)
 
-        # get enemy pieces that can be taken if a mill is formed
-        enemies_outside_mills = self.get_pieces_outside_mills(-player)
-        if len(enemies_outside_mills) > 0:
-            enemies_to_take = enemies_outside_mills
-        else:
-            enemies_to_take = self.get_player_pieces(-player)
+        possibilities_for_capture = self.get_stones_outside_mills(-player)
 
-        # get the current players pieces that will be moved
-        current_positions = self.get_player_pieces(player)
+        current_positions = self.get_player_stones(player)
 
-        # creating the first part of the moves
-        part_moves = []
+        possible_moves = []
 
         for position in current_positions:
-            neighbours = self.get_neighbours(position)
-            index = 0
-            while index < len(neighbours):
-                if board[neighbours[index]] == 0:
-                    part_moves.append((position, neighbours[index]))
-                index += 1
+            adjacent = get_adjacent(position)
+            for adjacent_position in adjacent:
+                if self.is_position_unoccupied(adjacent_position):
+                    possible_moves.append((position, adjacent_position))
 
-        # finding the part moves that create mills, then pairing them accordingly with enemy pieces to beat
-        # get moves -> for each move_location, check if a mill is formed (check row(s))
-        mill_moves = self.get_possible_mills(part_moves, player)
+        mill_moves = self.get_possible_mills(possible_moves, player)
 
-        for move in part_moves:
+        for move in possible_moves:
             if move in mill_moves:
-                for enemy in enemies_to_take:
-                    moves.append((move[0], move[1], enemy))
+                for opponent_stone in possibilities_for_capture:
+                    moves.append((move[0], move[1], opponent_stone))
             else:
-                moves.append((move[0], move[1], 'none'))
+                moves.append((move[0], move[1], None))
 
         return list(moves)
-
-    """
-    Looks at the board, given the current player and identifies all
-    legal moves for the current gamestate, given that the player is
-    in Phase 2
-    """
 
     def get_legal_moves_2(self, player):
         """
-        Input:
-            player: current player (1 or -1)
-
-        Returns:
-            moves: list of move tuples that are legal for the given player,
-            the players game phase and the current board
+        Returns the valid moves vector for current player in current board state in phase 1
+        :param player: The current player
+        :return: Valid moves vector
         """
         moves = []
 
-        # get enemy pieces that can be taken if a mill is formed
-        enemies_outside_mills = self.get_pieces_outside_mills(-player)
-        if len(enemies_outside_mills) > 0:
-            enemies_to_take = enemies_outside_mills
-        else:
-            enemies_to_take = self.get_player_pieces(-player)
+        possibilities_for_capture = self.get_stones_outside_mills(-player)
 
-        # get the current players pieces that will be moved
-        current_positions = self.get_player_pieces(player)
+        current_positions = self.get_player_stones(player)
 
-        # creating the first part of the moves
-        part_moves = []
+        possible_moves = []
 
-        empty_locations = self.get_empty_positions()
+        empty_spaces = self.get_empty_spaces()
 
-        # pair the locations of current positions with all empty locations on the board
         for position in current_positions:
-            for location in empty_locations:
-                part_moves.append((position, location))
+            for empty_position in empty_spaces:
+                possible_moves.append((position, empty_position))
 
-        # finding the part moves that create mills, then pairing them accordingly with enemy pieces to beat
-        # get moves -> for each move_location, check if a mill is formed (check row(s))
-        mill_moves = self.get_possible_mills(part_moves, player)
+        mill_moves = self.get_possible_mills(possible_moves, player)
 
-        for move in part_moves:
+        for move in possible_moves:
             if move in mill_moves:
-                for enemy in enemies_to_take:
-                    moves.append((move[0], move[1], enemy))
+                for opponent_stone in possibilities_for_capture:
+                    moves.append((move[0], move[1], opponent_stone))
             else:
-                moves.append((move[0], move[1], 'none'))
+                moves.append((move[0], move[1], None))
 
         return list(moves)
 
-    """
-    checks if the given player has any legal moves on the current board
-    """
-
-    def has_legal_moves(self, player):
+    def has_legal_moves(self, player) -> bool:
         """
-        Returns:
-            Boolean: has legal moves
+        Checks if player can make any valid move in this board state
+        :param player: The current player
+        :return: Has valid moved
         """
-        if (len(self.get_legal_moves(player)) > 0):
+        if len(self.get_legal_moves(player)) > 0:
             return True
         return False
 
-    '''
-    Rotates the board three times, each time creating a pair of the rotated
-    board and the rotated vector of legal moves.
-    Uses a shift vector for the board to calculate the new position for each
-    index in the array and a lookup list for the vector of legal moves.
-    '''
-
     def get_board_rotations(self, pi, all_moves, policy_rotation_vector):
         """
-        Input:
-            pi: the legal move vector
-            all_moves: list with all legal moves
-            policy_rotation_vector: lookup list for the vector of legal moves
-
-        Returns:
-            rotated_results: list of Tuples (image, legal_moves)
+        Rotates the board 3 times.
+        :param pi: Vector of all valid moves
+        :param all_moves: All possible moves
+        :param policy_rotation_vector: The rotation policy for 90 degrees
+        :return: The three rotations of the board along with the corresponding rotated valid moves vector
         """
-        # vector to rotate the board 90 degrees -> move each ring by two positions
-        rot90_vector = [2, 2, 2, 2, 2, 2, -6, -6, 2, 2, 2, 2, 2, 2, -6, -6, 2, 2, 2, 2, 2, 2, -6, -6]
+        old_board, count, moves_without_mills = self.get_stones_and_misc()
 
-        old_board, placements = self.piecesToArray()
-        new_board = np.zeros((24), dtype=int)
-        new_pi = np.zeros((len(all_moves)), dtype=int)
+        reshaped_board = np.reshape(old_board[:24], (3, 8))
+        rotation_vector = 2
 
         rotated_results = []
 
-        # rotates the board 3 times
-        for i in range(3):
-            index = 0
-            while index < 24:
-                new_board[index + rot90_vector[index]] = np.copy(old_board[index])
-                index += 1
+        for _ in range(3):
+            rotated_board = np.array([np.roll(zone, rotation_vector) for zone in reshaped_board])
 
-            index = 0
-            while index < len(all_moves):
-                new_pi[policy_rotation_vector[index]] = np.copy(pi[index])
-                index += 1
+            flat_rotated_board = rotated_board.flatten()
 
-            rotated_results += [(self.arrayToImage(new_board, placements), new_pi)]
-            old_board = np.copy(new_board)
-            pi = np.copy(new_pi)
+            rotated_pi = np.zeros(len(all_moves), dtype=int)
+            for idx, move in enumerate(pi):
+                rotated_pi[policy_rotation_vector[idx]] = move
 
-            i += 1
+            rotated_results.append((self.to_board(flat_rotated_board, [count, moves_without_mills]), rotated_pi))
+
+            reshaped_board = rotated_board
+            pi = rotated_pi
 
         return rotated_results
 
-    """
-    Exectues a move on the current board for the given player
-    """
-
-    def execute_move(self, player, move_index, all_moves):
+    def execute_move(self, player, move_index, all_moves) -> None:
         """
-        Input:
-            player: the legal move vector
-            move_index: index for the move in the all_moves list
-            all_moves: list with all legal moves
+        Executes the given move.
+        :param player: The current player
+        :param move_index: The index of the move to be executed
+        :param all_moves: List of all possible moves
         """
         move = all_moves[move_index]
         assert (len(move) == 3)  # move is a tuple of length 3
-        board, placements = self.piecesToArray()
-        assert (0 <= placements[0] <= 18)
-        assert (len(board) == 24)
+        board, count_placements, moves_without_mills = self.get_stones_and_misc()
+        # print(f"EXECUTING MOVE: {move}. The board is now: {board}. The placements {count_placements}")
 
-        count_placements, current_moves = placements
         if self.get_game_phase(player) == 0:
             count_placements += 1
-        if move[0] != 'none':
+        if move[0] is not None:
             board[move[0]] = 0
-        if move[2] != 'none':
+        if move[2] is not None:
             board[move[2]] = 0
-            current_moves = 0
-        elif move[2] == 'none':
-            current_moves += 1
+            moves_without_mills = 0
+        elif move[2] is None:
+            moves_without_mills += 1
         board[move[1]] = player
-        if current_moves > 50:
-            print(current_moves)
 
-        placements = (count_placements, current_moves)
+        # print(f"DONE MOVE: {move}. The board is now: {board}. The placements {count_placements}")
 
-        image = self.arrayToImage(board, placements)
-        self.pieces = np.copy(image)
+        self.pieces = np.copy(self.to_board(board, [count_placements, moves_without_mills]))
+
+    def to_board(self, board_array, misc):
+        """
+        :param board_array: The stone placements
+        :param misc: Misc info about moves
+        :return: board containing stone placements and misc
+        """
+        board = np.zeros((self.n, self.m), dtype=int)
+        board[:4, :] = np.reshape(board_array, (4, 6))
+
+        board[4, 0] = misc[0]
+        board[4, 1] = misc[1]
+
+        # print(f"NEW BOARD MADE: {board}")
+
+        return board

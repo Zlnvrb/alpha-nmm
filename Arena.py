@@ -63,10 +63,11 @@ class Arena():
             # Valids is a vector of 1 and 0 with length of all possible moves, with 1 to mark valid move in this
             # position.
             valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer), 1)
+            # print(f"Valids: {[index for index, value in enumerate(valids) if value == 1]}")
 
             while valids[action] == 0:
                 log.error(f'Action {action} is not valid!')
-                log.info(f'valids = {[i for i, value in enumerate(valids) if value == 1]}')
+                # log.info(f'valids = {[i for i, value in enumerate(valids) if value == 1]}')
                 action = players[curPlayer + 1](self.game.getCanonicalForm(board, curPlayer))
 
                 # Valids is a vector of 1 and 0 with length of all possible moves, with 1 to mark valid move in this
