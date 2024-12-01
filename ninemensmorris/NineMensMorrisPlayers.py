@@ -16,9 +16,10 @@ def input_to_valid_move_form(given_input):
 
 
 def to_correct_type(value):
-    if value != 'none':
+    try:
         return int(value)
-    return None
+    except:
+        return None
 
 
 class RandomPlayer():
@@ -59,7 +60,8 @@ class HumanNineMensMorrisPlayer():
 
         while True:
             valid_moves_vector, valid_moves, all_moves = self.game.getValidMovesAsTuple(board, 1)
-            # print(f"Valid moves: {valid_moves}")
+            if self.show_valid_moves:
+                print(f"Valid moves: {valid_moves}")
 
             user_input = input()
             move = input_to_valid_move_form(user_input)
@@ -67,7 +69,7 @@ class HumanNineMensMorrisPlayer():
             if move in all_moves:
                 break
             else:
-                print('Invalid')
+                print('This input is invalid.')
 
         # Return index of move
         return all_moves.index(move)

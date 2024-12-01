@@ -66,7 +66,7 @@ class Arena():
             # print(f"Valids: {[index for index, value in enumerate(valids) if value == 1]}")
 
             while valids[action] == 0:
-                log.error(f'Action {action} is not valid!')
+                log.error(f'This move is not valid!')
                 # log.info(f'valids = {[i for i, value in enumerate(valids) if value == 1]}')
                 action = players[curPlayer + 1](self.game.getCanonicalForm(board, curPlayer))
 

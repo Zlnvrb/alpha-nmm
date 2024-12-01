@@ -30,7 +30,6 @@ if human_vs_cpu:
     print(arena.playGames(4, verbose=True))
 
 else:
-
     # nnet players
     n1 = NNetWrapper(g)
     n1.load_checkpoint('./pretrained_models/ninemensmorris/pytorch/',
